@@ -204,7 +204,7 @@ La PWA está preparada para empaquetarse con Capacitor sin reescribir la capa de
 
 ```bash
 npm i -D @capacitor/cli && npm i @capacitor/core @capacitor/android
-npx cap init "Gym Track" co.datasketch.gymtrack --web-dir=dist
+npx cap init "Gym Track" co.dominio.gymtrack --web-dir=dist
 npx cap add android
 ```
 
