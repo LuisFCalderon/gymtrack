@@ -30,9 +30,12 @@ export function marcarTourVisto(): void {
   }
 }
 
-/** Abre la guía. Se marca como vista al arrancar: si se salta, tampoco vuelve a salir sola. */
+/**
+ * Abre la guía. La marca de "ya vista" la pone el propio tour cuando consigue mostrarse
+ * (y al cerrarse o saltarse): si el chunk no llega a cargar, la guía se vuelve a ofrecer
+ * en el siguiente arranque en vez de perderse en silencio.
+ */
 export async function abrirTour(): Promise<void> {
-  marcarTourVisto()
   try {
     const { lanzarTour } = await import('./tour')
     await lanzarTour()

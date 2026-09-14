@@ -190,6 +190,8 @@ export async function lanzarTour(): Promise<void> {
   })
 
   await mostrar(0, 1)
+  // Ya se mostró: a partir de aquí no vuelve a salir sola aunque el usuario cierre la pestaña.
+  marcarTourVisto()
 }
 
 function aPaso(paso: PasoTour): DriveStep {
