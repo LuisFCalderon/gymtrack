@@ -47,7 +47,7 @@ export default function Dashboard() {
         subtitle={`${WEEKDAY_NAMES[weekday]} · ${date.split('-').reverse().join('/')}`}
       />
       <div className="screen">
-        <section className="card">
+        <section className="card" data-tour="hoy-resumen">
           <div className="row-between">
             <div className="grow">
               <div className="section-title">Entrenamiento</div>
@@ -76,7 +76,12 @@ export default function Dashboard() {
             </p>
           )}
 
-          <button className="btn-primary btn-block btn-lg" style={{ marginTop: 14 }} onClick={open}>
+          <button
+            className="btn-primary btn-block btn-lg"
+            style={{ marginTop: 14 }}
+            onClick={open}
+            data-tour="hoy-iniciar"
+          >
             {sets.length > 0 || session ? 'Continuar entrenamiento' : 'Iniciar entrenamiento'}
           </button>
         </section>

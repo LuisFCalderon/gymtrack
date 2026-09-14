@@ -1,5 +1,14 @@
+import { useState } from 'react'
+import BarChart from '../components/charts/BarChart'
+import Segmented from '../components/charts/Segmented'
 import { Empty, Metric, TopBar } from '../components/ui'
-import { listTrackedExercises, personalRecords, weeklyTotals } from '../db/stats'
+import {
+  listTrackedExercises,
+  personalRecords,
+  weeklyTotals,
+  weeklyVolumeSeries,
+  type WeekVolume,
+} from '../db/stats'
 import { formatDuration, formatRelativeDate, todayISO } from '../lib/date'
 import { num, plural } from '../lib/format'
 import { Link } from '../lib/router'
@@ -9,22 +18,23 @@ export default function ProgressScreen() {
   const since = todayISO(new Date(Date.now() - 6 * 86400000))
 
   const { data } = useQuery(async () => {
-    const [week, records, exercises] = await Promise.all([
+    const [week, records, exercises, weeks] = await Promise.all([
       weeklyTotals(since),
       personalRecords(),
       listTrackedExercises(),
+      weeklyVolumeSeries(8),
     ])
-    return { week, records, exercises }
+    return { week, records, exercises, weeks }
   }, [since])
 
   if (!data) return <TopBar title="Progreso" />
-  const { week, records, exercises } = data
+  const { week, records, exercises, weeks } = data
 
   return (
     <>
       <TopBar title="Progreso" subtitle="Últimos 7 días" />
       <div className="screen">
-        <section className="card">
+        <section className="card" data-tour="progreso-semana">
           <div className="metrics">
             <Metric value={week.sessions} label="Sesiones" />
             <Metric value={week.sets} label="Series" />
@@ -35,6 +45,8 @@ export default function ProgressScreen() {
             Volumen = suma de peso × repeticiones de cada serie.
           </p>
         </section>
+
+        {weeks.some((w) => w.sets > 0) && <WeeklyChart weeks={weeks} />}
 
         {records.length > 0 && (
           <>
@@ -81,7 +93,7 @@ export default function ProgressScreen() {
           </div>
         )}
 
-        <div className="row" style={{ gap: 10 }}>
+        <div className="row" style={{ gap: 10 }} data-tour="progreso-modulos">
           <Link to="/cardio" className="grow">
             <button className="btn-outline btn-block">Cardio</button>
           </Link>
@@ -94,5 +106,58 @@ export default function ProgressScreen() {
         </div>
       </div>
     </>
+  )
+}
+
+/** Cómo voy en general: volumen (o series) de las últimas ocho semanas. */
+function WeeklyChart({ weeks }: { weeks: WeekVolume[] }) {
+  const [metric, setMetric] = useState<'volumen' | 'series'>('volumen')
+
+  // La media sólo cuenta las semanas entrenadas: las vacías hundirían el promedio.
+  const active = weeks.filter((w) => w.sets > 0)
+  const total = active.reduce((acc, w) => acc + (metric === 'volumen' ? w.volume : w.sets), 0)
+  const average = active.length > 0 ? total / active.length : 0
+  const averageLabel =
+    metric === 'volumen' ? `${num(average, 0)} kg` : plural(Math.round(average), 'serie', 'series')
+
+  return (
+    <section className="card stack-sm" data-tour="progreso-graficas">
+      <div className="row-between wrap">
+        <div className="section-title">
+          {metric === 'volumen' ? 'Volumen por semana' : 'Series por semana'}
+        </div>
+        <Segmented
+          label="Serie de la gráfica"
+          value={metric}
+          onChange={setMetric}
+          options={[
+            { value: 'volumen', label: 'Volumen' },
+            { value: 'series', label: 'Series' },
+          ]}
+        />
+      </div>
+
+      {metric === 'volumen' ? (
+        <BarChart
+          title="Volumen por semana, últimas 8 semanas"
+          valueHeader="Volumen"
+          formatValue={(value) => `${num(value, 0)} kg`}
+          points={weeks.map((w) => ({ date: w.weekStart, value: w.volume }))}
+        />
+      ) : (
+        <BarChart
+          title="Series por semana, últimas 8 semanas"
+          valueHeader="Series"
+          formatValue={(value) => plural(value, 'serie', 'series')}
+          formatTick={(value) => num(value, 0)}
+          points={weeks.map((w) => ({ date: w.weekStart, value: w.sets }))}
+        />
+      )}
+
+      <p className="muted tiny">
+        Cada barra es una semana de lunes a domingo
+        {average > 0 ? ` · media de ${averageLabel} por semana entrenada` : ''}.
+      </p>
+    </section>
   )
 }

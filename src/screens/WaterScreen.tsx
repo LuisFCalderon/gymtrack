@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import BarChart from '../components/charts/BarChart'
 import { Empty, Metric, ProgressBar, Sheet, TopBar } from '../components/ui'
-import { SETTINGS, addWater, deleteWater, getWaterGoal, listWaterByDate, setSetting, waterHistory, waterTotal } from '../db/wellbeing'
-import { formatRelativeDate, todayISO } from '../lib/date'
-import { num, parseNumber } from '../lib/format'
+import { SETTINGS, addWater, deleteWater, getWaterGoal, listWaterByDate, setSetting, waterDailySeries, waterTotal } from '../db/wellbeing'
+import { todayISO } from '../lib/date'
+import { liters, num, parseNumber } from '../lib/format'
 import { mutate, useQuery } from '../lib/useQuery'
 
 const QUICK_AMOUNTS = [0.25, 0.5, 0.75, 1]
@@ -17,7 +18,7 @@ export default function WaterScreen() {
       waterTotal(date),
       getWaterGoal(),
       listWaterByDate(date),
-      waterHistory(),
+      waterDailySeries(14),
     ])
     return { total, goal, records, history }
   }, [date])
@@ -84,19 +85,26 @@ export default function WaterScreen() {
           </div>
         )}
 
-        {history.length > 0 && (
+        {history.some((day) => day.total > 0) && (
           <>
-            <div className="section-title">Últimos días</div>
+            <div className="section-title">Últimos 14 días</div>
             <section className="card stack-sm">
-              {history.map((day) => (
-                <div key={day.date} className="stack-sm">
-                  <div className="row-between tiny">
-                    <span className={day.date === date ? '' : 'muted'}>{formatRelativeDate(day.date)}</span>
-                    <span className="mono muted">{num(day.total, 2)} L</span>
-                  </div>
-                  <ProgressBar value={day.total} max={goal} />
-                </div>
-              ))}
+              <BarChart
+                title="Litros de agua por día, últimos 14 días"
+                valueHeader="Litros"
+                height={150}
+                formatValue={(value) => liters(value)}
+                formatTick={(value) => num(value, 1)}
+                reference={{ value: goal, label: 'Meta' }}
+                points={history.map((day) => ({
+                  date: day.date,
+                  value: day.total,
+                  ok: day.total >= goal,
+                }))}
+              />
+              <p className="muted tiny">
+                La línea marca la meta de {num(goal, 2)} L; en verde, los días que la alcanzaron.
+              </p>
             </section>
           </>
         )}

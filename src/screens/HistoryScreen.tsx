@@ -19,6 +19,7 @@ export default function HistoryScreen() {
         <input
           value={query}
           placeholder="Buscar ejercicio…"
+          data-tour="historial-buscador"
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Buscar ejercicio"
         />

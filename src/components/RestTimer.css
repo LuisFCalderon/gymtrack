@@ -1,0 +1,91 @@
+/* Barra flotante del descanso entre series: encima de la navegación, debajo de las hojas. */
+
+.rest-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--nav-height);
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  padding: 0 8px 8px;
+  pointer-events: none;
+  animation: rest-in 0.18s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.rest-panel {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 640px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+}
+
+.rest-progress {
+  height: 4px;
+  background: var(--surface-2);
+}
+.rest-progress > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.25s linear;
+}
+.rest-panel.pausa .rest-progress > div { background: var(--muted); }
+
+.rest-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.rest-time {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+  padding-inline-end: 4px;
+}
+.rest-time .value {
+  font-size: 2rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.rest-time .label {
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.rest-row button {
+  min-width: 46px;
+  min-height: 46px;
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.rest-row .rest-spacer { flex: 1; min-width: 0; }
+.rest-row .rest-close {
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+/* Deja sitio al final del contenido para que la barra no tape nada. */
+body.rest-activo .app {
+  padding-bottom: calc(var(--nav-height) + 84px);
+}
+
+@keyframes rest-in {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rest-bar { animation: none; }
+  .rest-progress > div { transition: none; }
+}

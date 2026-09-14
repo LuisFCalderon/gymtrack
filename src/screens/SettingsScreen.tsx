@@ -1,22 +1,41 @@
 import { useRef, useState } from 'react'
+import { abrirTour } from '../components/tour'
 import { Confirm, TopBar } from '../components/ui'
 import { getDatabaseFile, getDatabaseInfo, overwriteDatabaseFile } from '../db/client'
-import { getWaterGoal } from '../db/wellbeing'
+import { SETTINGS, getRestAlert, getRestSeconds, getWaterGoal, setSetting } from '../db/wellbeing'
 import { todayISO } from '../lib/date'
 import { num } from '../lib/format'
+import { appInstalada, instalarApp, useInstalacionDisponible } from '../lib/install'
+import { formatoDescanso, invalidarAjustesDescanso } from '../lib/restTimer'
 import { applyTheme, readTheme, type Theme } from '../lib/theme'
-import { useQuery } from '../lib/useQuery'
+import { mutate, useQuery } from '../lib/useQuery'
+
+/** Duraciones de descanso ofrecidas, en segundos. */
+const REST_OPTIONS = [45, 60, 90, 120, 180]
 
 export default function SettingsScreen() {
   const [theme, setTheme] = useState<Theme>(readTheme())
   const [importing, setImporting] = useState<File | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [installed, setInstalled] = useState(appInstalada())
+  const [installMessage, setInstallMessage] = useState<string | null>(null)
+  const canInstall = useInstalacionDisponible()
   const fileInput = useRef<HTMLInputElement>(null)
 
   const { data } = useQuery(async () => {
-    const [info, goal] = await Promise.all([getDatabaseInfo(), getWaterGoal()])
-    return { info, goal }
+    const [info, goal, restSeconds, restAlert] = await Promise.all([
+      getDatabaseInfo(),
+      getWaterGoal(),
+      getRestSeconds(),
+      getRestAlert(),
+    ])
+    return { info, goal, restSeconds, restAlert }
   }, [])
+
+  const saveRest = async (key: string, value: string) => {
+    await mutate(() => setSetting(key, value))
+    invalidarAjustesDescanso()
+  }
 
   const changeTheme = (next: Theme) => {
     setTheme(next)
@@ -35,13 +54,20 @@ export default function SettingsScreen() {
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
+  const install = async () => {
+    const result = await instalarApp()
+    if (result === 'aceptada') setInstalled(true)
+    else if (result === 'rechazada') setInstallMessage('Instalación cancelada.')
+    else setInstallMessage('Este navegador no ofreció instalarla; hazlo desde su menú.')
+  }
+
   const sizeMb = data?.info.databaseSizeBytes ? data.info.databaseSizeBytes / (1024 * 1024) : 0
 
   return (
     <>
       <TopBar title="Ajustes" />
       <div className="screen">
-        <section className="card stack-sm">
+        <section className="card stack-sm" data-tour="ajustes-apariencia">
           <div className="section-title">Apariencia</div>
           <div className="row">
             <button
@@ -59,7 +85,33 @@ export default function SettingsScreen() {
           </div>
         </section>
 
-        <section className="card stack-sm">
+        <section className="card stack-sm" data-tour="ajustes-descanso">
+          <div className="section-title">Descanso entre series</div>
+          <p className="muted small">
+            El temporizador arranca solo al registrar una serie y se queda encima de la navegación.
+          </p>
+          <div className="row wrap">
+            {REST_OPTIONS.map((seconds) => (
+              <button
+                key={seconds}
+                className={`grow mono ${data?.restSeconds === seconds ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => saveRest(SETTINGS.restSeconds, String(seconds))}
+              >
+                {formatoDescanso(seconds)}
+              </button>
+            ))}
+          </div>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={data?.restAlert ?? true}
+              onChange={(e) => saveRest(SETTINGS.restAlert, e.target.checked ? '1' : '0')}
+            />
+            Avisar al terminar (pitido y vibración)
+          </label>
+        </section>
+
+        <section className="card stack-sm" data-tour="ajustes-datos">
           <div className="section-title">Tus datos</div>
           <p className="muted small">
             Todo se guarda en este dispositivo, dentro del almacenamiento privado del navegador. No hay
@@ -94,11 +146,41 @@ export default function SettingsScreen() {
           {message && <p className="small">{message}</p>}
         </section>
 
+        {!installed && (
+          <section className="card stack-sm">
+            <div className="section-title">Instalar</div>
+            {canInstall ? (
+              <>
+                <p className="muted small">
+                  Queda en la pantalla de inicio, se abre a pantalla completa y funciona sin conexión.
+                </p>
+                <button className="btn-primary btn-block" onClick={install}>
+                  Instalar app
+                </button>
+              </>
+            ) : (
+              <p className="muted small">
+                Tu navegador no ofrece el botón, pero puedes instalarla a mano: en Android, menú de
+                Chrome → "Añadir a pantalla de inicio"; en escritorio, el icono de instalar de la
+                barra de direcciones.
+              </p>
+            )}
+            {installMessage && <p className="small">{installMessage}</p>}
+          </section>
+        )}
+
+        <section className="card stack-sm">
+          <div className="section-title">Guía</div>
+          <p className="muted small">Un repaso rápido por cada sección de la app.</p>
+          <button className="btn-outline btn-block" data-tour="ajustes-guia" onClick={() => void abrirTour()}>
+            Ver la guía otra vez
+          </button>
+        </section>
+
         <section className="card stack-sm">
           <div className="section-title">Acerca de</div>
           <p className="muted small">
             Gym Track V2 — libreta digital personal de entrenamiento. Funciona sin conexión y sin cuenta.
-            Puedes instalarla desde el menú del navegador ("Agregar a pantalla de inicio").
           </p>
         </section>
       </div>

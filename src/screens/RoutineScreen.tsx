@@ -16,7 +16,7 @@ export default function RoutineScreen() {
     <>
       <TopBar title="Rutina" subtitle="Siete días configurables" />
       <div className="screen">
-        <div className="list">
+        <div className="list" data-tour="rutina-dias">
           {data?.days.map((day) => {
             const count = data.counts[day.id] ?? 0
             return (

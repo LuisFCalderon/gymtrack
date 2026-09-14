@@ -1,4 +1,5 @@
 import { sql } from './client'
+import { shiftDays, startOfWeekISO } from '../lib/date'
 import type { WorkoutSet } from './types'
 
 /** Ejercicios con historial, ordenados por uso reciente. */
@@ -138,4 +139,39 @@ export async function personalRecords(
     GROUP BY ws.exercise_name
     ORDER BY s.date DESC
     LIMIT ${limit}`
+}
+
+export type WeekVolume = {
+  weekStart: string
+  volume: number
+  sets: number
+  sessions: number
+}
+
+/** Volumen y series por semana (lunes a domingo), con las semanas vacías rellenas. */
+export async function weeklyVolumeSeries(weeks = 8): Promise<WeekVolume[]> {
+  const since = shiftDays(startOfWeekISO(), -(weeks - 1) * 7)
+  // 'weekday 0' avanza al domingo de esa semana; restar 6 días deja el lunes.
+  const rows = await sql<{ week_start: string; volume: number | null; sets: number; sessions: number }>`
+    SELECT date(s.date, 'weekday 0', '-6 days') AS week_start,
+           SUM(COALESCE(ws.weight_kg, 0) * COALESCE(ws.reps, 0)) AS volume,
+           COUNT(ws.id) AS sets,
+           COUNT(DISTINCT s.id) AS sessions
+    FROM workout_sessions s
+    JOIN workout_sets ws ON ws.session_id = s.id
+    WHERE s.date >= ${since}
+    GROUP BY week_start
+    ORDER BY week_start`
+
+  const byWeek = new Map(rows.map((row) => [row.week_start, row]))
+  return Array.from({ length: weeks }, (_, i) => {
+    const weekStart = shiftDays(since, i * 7)
+    const row = byWeek.get(weekStart)
+    return {
+      weekStart,
+      volume: row?.volume ?? 0,
+      sets: row?.sets ?? 0,
+      sessions: row?.sessions ?? 0,
+    }
+  })
 }

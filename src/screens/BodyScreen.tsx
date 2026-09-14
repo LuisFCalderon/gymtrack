@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Sparkline from '../components/Sparkline'
+import LineChart from '../components/charts/LineChart'
 import { Confirm, Empty, Metric, Sheet, TopBar } from '../components/ui'
 import {
   SETTINGS,
@@ -12,7 +12,7 @@ import {
 } from '../db/wellbeing'
 import type { BodyMeasurement } from '../db/types'
 import { formatRelativeDate, todayISO } from '../lib/date'
-import { bmi, bmiLabel, num, parseNumber } from '../lib/format'
+import { bmi, bmiLabel, kg, num, parseNumber } from '../lib/format'
 import { mutate, useQuery } from '../lib/useQuery'
 
 export default function BodyScreen() {
@@ -30,9 +30,7 @@ export default function BodyScreen() {
 
   if (!data) return <TopBar title="Peso corporal" onBack />
   const { measurements, last, height } = data
-  const series = [...measurements]
-    .reverse()
-    .map((m) => ({ label: m.date, value: m.weight_kg }))
+  const series = [...measurements].reverse().map((m) => ({ date: m.date, value: m.weight_kg }))
 
   return (
     <>
@@ -67,8 +65,13 @@ export default function BodyScreen() {
 
         {series.filter((s) => s.value != null).length > 1 && (
           <section className="card stack-sm">
-            <div className="section-title">Evolución</div>
-            <Sparkline points={series} unit="kg" />
+            <div className="section-title">Evolución del peso</div>
+            <LineChart
+              title="Evolución del peso corporal"
+              valueHeader="Peso"
+              formatValue={(value) => kg(value)}
+              points={series}
+            />
           </section>
         )}
 

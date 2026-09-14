@@ -53,3 +53,16 @@ export function parseDuration(input: string): number | null {
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
   return null
 }
+
+/** Suma (o resta) días a una fecha ISO corta sin cruzar zonas horarias. */
+export function shiftDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return todayISO(new Date(y, m - 1, d + days))
+}
+
+/** Lunes de la semana a la que pertenece la fecha. */
+export function startOfWeekISO(iso: string = todayISO()): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  return todayISO(new Date(y, m - 1, d - (weekdayOf(date) - 1)))
+}

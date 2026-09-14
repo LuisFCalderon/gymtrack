@@ -1,5 +1,5 @@
 import { sql } from './client'
-import { nowISO } from '../lib/date'
+import { nowISO, shiftDays, todayISO } from '../lib/date'
 import type { BodyMeasurement, WaterRecord } from './types'
 import { bmi } from '../lib/format'
 
@@ -29,6 +29,21 @@ export async function waterHistory(days = 14): Promise<{ date: string; total: nu
   return sql<{ date: string; total: number }>`
     SELECT date, SUM(liters) AS total FROM water_records
     GROUP BY date ORDER BY date DESC LIMIT ${days}`
+}
+
+/** Litros por día de los últimos N días, con los días sin registro en cero. */
+export async function waterDailySeries(days = 14): Promise<{ date: string; total: number }[]> {
+  const since = shiftDays(todayISO(), -(days - 1))
+  const rows = await sql<{ date: string; total: number | null }>`
+    SELECT date, SUM(liters) AS total FROM water_records
+    WHERE date >= ${since}
+    GROUP BY date ORDER BY date`
+
+  const byDate = new Map(rows.map((row) => [row.date, row.total ?? 0]))
+  return Array.from({ length: days }, (_, i) => {
+    const date = shiftDays(since, i)
+    return { date, total: byDate.get(date) ?? 0 }
+  })
 }
 
 /* ---------- Peso corporal ---------- */
@@ -78,10 +93,26 @@ export const SETTINGS = {
   waterGoal: 'water_goal_liters',
   heightCm: 'height_cm',
   theme: 'theme',
+  restSeconds: 'rest_seconds',
+  restAlert: 'rest_alert',
 } as const
 
 export async function getWaterGoal(): Promise<number> {
   const raw = await getSetting(SETTINGS.waterGoal)
   const parsed = raw ? Number(raw) : NaN
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 2.5
+}
+
+/** Duración por defecto del descanso entre series, en segundos. */
+export const REST_SECONDS_DEFAULT = 90
+
+export async function getRestSeconds(): Promise<number> {
+  const raw = await getSetting(SETTINGS.restSeconds)
+  const parsed = raw ? Number(raw) : NaN
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : REST_SECONDS_DEFAULT
+}
+
+/** Aviso (pitido y vibración) al terminar el descanso; activo salvo que se apague. */
+export async function getRestAlert(): Promise<boolean> {
+  return (await getSetting(SETTINGS.restAlert)) !== '0'
 }

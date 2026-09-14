@@ -21,6 +21,7 @@ import { getDayByWeekday } from '../db/routine'
 import type { SessionExercise, WorkoutSet } from '../db/types'
 import { formatRelativeDate, todayISO, weekdayOf } from '../lib/date'
 import { num, parseInteger, parseNumber, plural } from '../lib/format'
+import { iniciarDescanso, saltarDescanso } from '../lib/restTimer'
 import { Link, navigate } from '../lib/router'
 import { mutate, useQuery } from '../lib/useQuery'
 
@@ -91,6 +92,7 @@ export default function WorkoutScreen({ sessionId }: { sessionId: number | null 
             sessionId={session.id}
             exercise={exercise}
             sets={setsByExercise.get(exercise.id) ?? []}
+            descansa={isToday}
           />
         ))}
 
@@ -151,6 +153,7 @@ export default function WorkoutScreen({ sessionId }: { sessionId: number | null 
           onCancel={() => setFinishing(false)}
           onConfirm={async () => {
             await mutate(() => finishSession(session.id))
+            saltarDescanso()
             setFinishing(false)
             navigate('/')
           }}
@@ -164,10 +167,13 @@ function ExerciseCard({
   sessionId,
   exercise,
   sets,
+  descansa,
 }: {
   sessionId: number
   exercise: SessionExercise
   sets: WorkoutSet[]
+  /** Sólo se cronometra el descanso cuando se entrena hoy, no al editar una sesión pasada. */
+  descansa: boolean
 }) {
   const { data: previous } = useQuery(
     () => lastPerformance(exercise.name, sessionId),
@@ -210,6 +216,8 @@ function ExerciseCard({
     setWeight('')
     setReps('')
     setRir('')
+    // La serie queda registrada: aquí empieza el descanso de verdad.
+    if (descansa) void iniciarDescanso()
   }
 
   return (

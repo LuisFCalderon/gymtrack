@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import BottomNav from './components/BottomNav'
+import RestTimer from './components/RestTimer'
+import { abrirTour, tourVisto } from './components/tour'
 import { initDatabase } from './db/schema'
 import { segments, useRoute } from './lib/router'
 import Dashboard from './screens/Dashboard'
@@ -27,6 +29,11 @@ export default function App() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
+  // La primera vez que se abre la app, la guía sale sola.
+  useEffect(() => {
+    if (ready && !tourVisto()) void abrirTour()
+  }, [ready])
+
   if (error) {
     return (
       <div className="screen">
@@ -51,6 +58,7 @@ export default function App() {
   return (
     <div className="app">
       {renderRoute(route)}
+      <RestTimer />
       <BottomNav route={route} />
     </div>
   )

@@ -10,7 +10,7 @@ const ITEMS = [
 
 export default function BottomNav({ route }: { route: string }) {
   return (
-    <nav className="nav">
+    <nav className="nav" data-tour="nav">
       {ITEMS.map(({ to, label, icon: Icon }) => {
         const active = to === '/' ? route === '/' : route.startsWith(to)
         return (

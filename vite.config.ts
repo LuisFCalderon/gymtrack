@@ -10,10 +10,14 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-512.png'],
+      // Sin esto no hay Service Worker en `npm run dev`, y sin Service Worker
+      // el navegador no ofrece instalar la app.
+      devOptions: { enabled: true, type: 'module', navigateFallback: 'index.html' },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
+        // El runtime de SQLite (~860 KB de .wasm) supera el límite por defecto
+        // y sin él la app no abriría sin conexión.
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
-        navigateFallbackDenylist: [/^\/sqlite3-opfs/],
       },
       manifest: {
         name: 'Gym Track',
