@@ -171,9 +171,38 @@ reescribe cuando la rutina cambia más adelante.
 ## Offline y almacenamiento
 
 El Service Worker precarga el shell y el runtime de SQLite (~1,9 MB en total), de modo que la app
-abre sin red desde la segunda visita. La base vive en OPFS (almacenamiento privado del origen) y
-**no requiere cabeceras de aislamiento cross-origin**: verificado sirviendo el build desde un
-servidor estático simple y luego apagándolo.
+abre sin red desde la segunda visita.
+
+### El servidor DEBE enviar las cabeceras de aislamiento cross-origin
+
+La base vive en OPFS, y el VFS de OPFS de SQLite **sólo existe si el documento es
+`crossOriginIsolated`**. Eso exige dos cabeceras:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+Sin ellas, SQLocal **cae en silencio a una base en memoria** (sólo deja un `console.warn`): la app
+arranca, los datos parecen guardarse y **desaparecen enteros en la siguiente recarga**. En
+desarrollo no se nota porque el plugin `sqlocal/vite` pone esas cabeceras en el servidor de Vite;
+el fallo aparece únicamente en producción.
+
+`public/_headers` las incluye. Si tu hosting no lee ese archivo, configúralas a mano. La app no
+carga ningún recurso de otro origen, así que `require-corp` no rompe nada.
+
+Como el fallo es silencioso y catastrófico, la app **se niega a arrancar** si detecta que la base
+quedó en memoria (`getDatabaseInfo().storageType === 'memory'`) y explica qué falta, en vez de
+dejarte anotar un entrenamiento que se va a perder.
+
+Para comprobarlo en cualquier despliegue, desde la consola del navegador:
+
+```js
+self.crossOriginIsolated // debe ser true
+// y debe existir el archivo:
+for await (const [n] of (await navigator.storage.getDirectory()).entries()) console.log(n)
+// → gymtrack.sqlite3
+```
 
 El navegador puede **desalojar** el almacenamiento de un sitio cuando al dispositivo le falta
 espacio, y con él se iría la libreta entera. Por eso la app pide `navigator.storage.persist()` al
@@ -196,8 +225,10 @@ El build es estático, así que sirve cualquier hosting. Recomendado: **Cloudfla
 
 - Al usar router sobre el hash **no hacen falta reglas de reescritura** para SPA; funciona
   también en GitHub Pages.
-- `public/_headers` (que leen Netlify y Cloudflare Pages) evita que el Service Worker y el HTML
-  se queden cacheados en una versión vieja, mientras los assets con hash se cachean para siempre.
+- `public/_headers` (que leen Netlify, Cloudflare Pages y Cloudflare Workers) hace dos cosas
+  **imprescindibles**: envía las cabeceras de aislamiento cross-origin sin las cuales no hay
+  persistencia (ver arriba), y evita que el Service Worker y el HTML se queden cacheados en una
+  versión vieja mientras los assets con hash se cachean para siempre.
 - **HTTPS es obligatorio**: sin él no hay Service Worker ni instalación de la PWA.
 - Si publicas en un subdirectorio (`usuario.github.io/gymtrack/`), ajusta `base` en
   `vite.config.ts` y el `start_url`/`scope` del manifest.

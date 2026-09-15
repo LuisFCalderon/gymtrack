@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import BottomNav from './components/BottomNav'
 import RestTimer from './components/RestTimer'
 import { abrirTour, tourVisto } from './components/tour'
-import { initDatabase } from './db/schema'
+import { almacenamientoEfimero, initDatabase } from './db/schema'
 import { segments, useRoute } from './lib/router'
 import Dashboard from './screens/Dashboard'
 import RoutineScreen from './screens/RoutineScreen'
@@ -22,17 +22,21 @@ export default function App() {
   const route = useRoute()
   const [ready, setReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [efimero, setEfimero] = useState(false)
 
   useEffect(() => {
     initDatabase()
-      .then(() => setReady(true))
+      .then(async () => {
+        setEfimero(await almacenamientoEfimero())
+        setReady(true)
+      })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
   // La primera vez que se abre la app, la guía sale sola.
   useEffect(() => {
-    if (ready && !tourVisto()) void abrirTour()
-  }, [ready])
+    if (ready && !efimero && !tourVisto()) void abrirTour()
+  }, [ready, efimero])
 
   if (error) {
     return (
@@ -42,6 +46,29 @@ export default function App() {
         <p className="muted small">
           Gym Track guarda los datos en el almacenamiento privado del navegador (OPFS). Comprueba que
           no estés en una ventana privada y que el navegador esté actualizado.
+        </p>
+      </div>
+    )
+  }
+
+  if (efimero) {
+    return (
+      <div className="screen" style={{ paddingTop: '12vh' }}>
+        <h1>Tus datos no se están guardando</h1>
+        <p className="muted small">
+          El navegador no puede usar el almacenamiento permanente en este servidor, así que la
+          libreta funcionaría sólo hasta que cierres o recargues la página. Todo lo que registres se
+          perdería.
+        </p>
+        <p className="muted small">
+          Falta que el servidor envíe las cabeceras <code>Cross-Origin-Opener-Policy: same-origin</code>{' '}
+          y <code>Cross-Origin-Embedder-Policy: require-corp</code>. El archivo{' '}
+          <code>public/_headers</code> del proyecto ya las incluye: comprueba que el despliegue las
+          esté aplicando.
+        </p>
+        <p className="muted small">
+          Preferimos detener la app aquí antes que dejarte anotar un entrenamiento que va a
+          desaparecer.
         </p>
       </div>
     )

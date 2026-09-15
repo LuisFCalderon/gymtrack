@@ -1,4 +1,4 @@
-import { sql } from './client'
+import { getDatabaseInfo, sql } from './client'
 
 /**
  * Migraciones incrementales. Cada entrada se aplica una sola vez y en orden.
@@ -143,5 +143,22 @@ async function migrate(): Promise<void> {
   // Los siete días existen siempre: la rutina se configura, no se crea.
   for (const [weekday, name] of DEFAULT_DAYS) {
     await sql`INSERT OR IGNORE INTO routine_days (weekday, name, rest_day) VALUES (${weekday}, ${name}, 0)`
+  }
+}
+
+/**
+ * Comprueba que la base esté realmente sobre OPFS y no en memoria.
+ *
+ * SQLocal cae a `:memory:` **en silencio** (sólo un `console.warn`) cuando el VFS de OPFS no está
+ * disponible, y eso ocurre si el servidor no envía las cabeceras de aislamiento cross-origin. El
+ * resultado es demoledor y no se nota: la app funciona, los datos se ven guardados, y desaparecen
+ * enteros en la siguiente recarga. Preferimos avisar a gritos antes que perder una libreta.
+ */
+export async function almacenamientoEfimero(): Promise<boolean> {
+  try {
+    const info = await getDatabaseInfo()
+    return info.storageType === 'memory'
+  } catch {
+    return false
   }
 }

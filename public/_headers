@@ -1,7 +1,14 @@
-# Netlify / Cloudflare Pages leen este archivo tal cual.
-# El objetivo es que el Service Worker y el HTML nunca queden pegados en una
-# versión vieja, mientras que los assets con hash se cachean para siempre.
+# Netlify / Cloudflare Pages / Cloudflare Workers leen este archivo tal cual.
 
+# Aislamiento cross-origin: SIN estas dos cabeceras el VFS de OPFS de SQLite no
+# está disponible y SQLocal cae en silencio a una base en memoria, que se pierde
+# entera en cada recarga. Es obligatorio, no una optimización.
+# La app no carga ningún recurso de otro origen, así que `require-corp` no rompe nada.
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+
+# El Service Worker y el HTML nunca deben quedarse pegados en una versión vieja.
 /sw.js
   Cache-Control: no-cache
 
@@ -11,5 +18,6 @@
 /manifest.webmanifest
   Cache-Control: no-cache
 
+# Los assets llevan hash en el nombre: se pueden cachear para siempre.
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
