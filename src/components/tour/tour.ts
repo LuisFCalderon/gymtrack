@@ -117,6 +117,14 @@ const PASOS: PasoTour[] = [
   },
   {
     ruta: '/ajustes',
+    selector: '[data-tour="ajustes-perfil"]',
+    lado: 'bottom',
+    titulo: 'Tu perfil',
+    texto:
+      'Tu altura y tu meta de agua: los dos datos que la app usa para calcular el IMC y tu progreso de hidratación. No es una cuenta, viven en este dispositivo como todo lo demás.',
+  },
+  {
+    ruta: '/ajustes',
     selector: '[data-tour="ajustes-apariencia"]',
     lado: 'bottom',
     titulo: 'Ajustes',

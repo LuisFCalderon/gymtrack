@@ -89,8 +89,13 @@ diaria y accesos rápidos. Peso calcula el IMC como referencia.
 
 ### Ajustes (`#/ajustes`)
 
-Tema claro/oscuro, duración del descanso, **exportar e importar** la copia de seguridad, instalar
-la app y relanzar la guía.
+Empieza por **Perfil**: altura y meta de agua, las dos constantes personales que la app usa para
+calcular (el IMC y el progreso de hidratación), con el IMC actual recalculado a partir del último
+peso registrado. No es una cuenta —no las hay— sino los ajustes que antes estaban dispersos: la
+altura sólo se podía tocar al registrar un peso y la meta de agua vivía en la pantalla de Agua.
+
+Debajo: tema claro/oscuro, duración del descanso, estado de protección de los datos, **exportar e
+importar** la copia de seguridad, instalar la app y relanzar la guía.
 
 ## Gráficas
 

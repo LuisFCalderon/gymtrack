@@ -1,10 +1,18 @@
 import { useRef, useState } from 'react'
 import { abrirTour } from '../components/tour'
-import { Confirm, TopBar } from '../components/ui'
+import { Confirm, Sheet, TopBar } from '../components/ui'
 import { getDatabaseFile, getDatabaseInfo, overwriteDatabaseFile } from '../db/client'
-import { SETTINGS, getRestAlert, getRestSeconds, getWaterGoal, setSetting } from '../db/wellbeing'
+import {
+  SETTINGS,
+  getRestAlert,
+  getRestSeconds,
+  getSetting,
+  getWaterGoal,
+  lastMeasurement,
+  setSetting,
+} from '../db/wellbeing'
 import { todayISO } from '../lib/date'
-import { num } from '../lib/format'
+import { bmi, bmiLabel, num, parseNumber } from '../lib/format'
 import { appInstalada, instalarApp, useInstalacionDisponible } from '../lib/install'
 import { formatoDescanso, invalidarAjustesDescanso } from '../lib/restTimer'
 import { applyTheme, readTheme, type Theme } from '../lib/theme'
@@ -22,16 +30,21 @@ export default function SettingsScreen() {
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const canInstall = useInstalacionDisponible()
   const fileInput = useRef<HTMLInputElement>(null)
+  const [editando, setEditando] = useState<'altura' | 'agua' | null>(null)
 
   const { data, reload } = useQuery(async () => {
-    const [info, goal, restSeconds, restAlert, almacenamiento] = await Promise.all([
-      getDatabaseInfo(),
-      getWaterGoal(),
-      getRestSeconds(),
-      getRestAlert(),
-      estadoAlmacenamiento(),
-    ])
-    return { info, goal, restSeconds, restAlert, almacenamiento }
+    const [info, goal, restSeconds, restAlert, almacenamiento, alturaRaw, ultimaMedida] =
+      await Promise.all([
+        getDatabaseInfo(),
+        getWaterGoal(),
+        getRestSeconds(),
+        getRestAlert(),
+        estadoAlmacenamiento(),
+        getSetting(SETTINGS.heightCm),
+        lastMeasurement(),
+      ])
+    const altura = alturaRaw ? Number(alturaRaw) : (ultimaMedida?.height_cm ?? null)
+    return { info, goal, restSeconds, restAlert, almacenamiento, altura, ultimaMedida }
   }, [])
 
   const saveRest = async (key: string, value: string) => {
@@ -64,11 +77,46 @@ export default function SettingsScreen() {
   }
 
   const sizeMb = data?.info.databaseSizeBytes ? data.info.databaseSizeBytes / (1024 * 1024) : 0
+  // Se recalcula con la altura actual: la del historial refleja la que había ese día.
+  const peso = data?.ultimaMedida?.weight_kg ?? null
+  const imcActual = peso != null && data?.altura ? bmi(peso, data.altura) : null
 
   return (
     <>
       <TopBar title="Ajustes" />
       <div className="screen">
+        <section className="card stack-sm" data-tour="ajustes-perfil">
+          <div className="section-title">Perfil</div>
+          <p className="muted tiny">
+            Los dos datos personales que la app usa para calcular. No son una cuenta: viven en este
+            dispositivo como el resto.
+          </p>
+          <button className="row-between btn-ghost" style={{ padding: '6px 0' }} onClick={() => setEditando('altura')}>
+            <span className="muted small">Altura</span>
+            <span className="row" style={{ gap: 6 }}>
+              <span className="mono">{data?.altura ? `${num(data.altura, 0)} cm` : 'Sin definir'}</span>
+              <span className="arrow">›</span>
+            </span>
+          </button>
+          <button className="row-between btn-ghost" style={{ padding: '6px 0' }} onClick={() => setEditando('agua')}>
+            <span className="muted small">Meta de agua</span>
+            <span className="row" style={{ gap: 6 }}>
+              <span className="mono">{num(data?.goal ?? 0, 2)} L</span>
+              <span className="arrow">›</span>
+            </span>
+          </button>
+          <div className="row-between small">
+            <span className="muted">IMC actual</span>
+            <span className="mono">{imcActual != null ? `${num(imcActual, 1)} · ${bmiLabel(imcActual)}` : '—'}</span>
+          </div>
+          {imcActual == null && (
+            <p className="muted tiny">
+              Registra tu altura y tu peso para verlo. Es sólo una referencia general, no un
+              diagnóstico.
+            </p>
+          )}
+        </section>
+
         <section className="card stack-sm" data-tour="ajustes-apariencia">
           <div className="section-title">Apariencia</div>
           <div className="row">
@@ -123,10 +171,6 @@ export default function SettingsScreen() {
           <div className="row-between small">
             <span className="muted">Tamaño de la base</span>
             <span className="mono">{sizeMb > 0 ? `${num(sizeMb, 2)} MB` : '—'}</span>
-          </div>
-          <div className="row-between small">
-            <span className="muted">Meta de agua</span>
-            <span className="mono">{num(data?.goal ?? 0, 2)} L</span>
           </div>
           {data?.almacenamiento.soportado && (
             <>
@@ -219,6 +263,14 @@ export default function SettingsScreen() {
         </section>
       </div>
 
+      {editando && (
+        <CampoSheet
+          campo={editando}
+          valor={editando === 'altura' ? (data?.altura ?? null) : (data?.goal ?? null)}
+          onClose={() => setEditando(null)}
+        />
+      )}
+
       {importing && (
         <Confirm
           title="¿Importar esta copia?"
@@ -239,5 +291,54 @@ export default function SettingsScreen() {
         />
       )}
     </>
+  )
+}
+
+/** Edita una de las dos constantes del perfil. Un solo campo por hoja: teclado grande y al grano. */
+function CampoSheet({
+  campo,
+  valor,
+  onClose,
+}: {
+  campo: 'altura' | 'agua'
+  valor: number | null
+  onClose: () => void
+}) {
+  const esAltura = campo === 'altura'
+  const [texto, setTexto] = useState(valor != null ? num(valor, esAltura ? 0 : 2) : '')
+  const parsed = parseNumber(texto)
+
+  return (
+    <Sheet title={esAltura ? 'Altura' : 'Meta de agua'} onClose={onClose}>
+      <label>
+        {esAltura ? 'Centímetros' : 'Litros por día'}
+        <input
+          className="mono"
+          autoFocus
+          inputMode="decimal"
+          placeholder={esAltura ? '175' : '2,5'}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+        />
+      </label>
+      <p className="muted tiny">
+        {esAltura
+          ? 'Se usa para calcular el IMC. Cambiarla no reescribe el IMC ya guardado en el historial.'
+          : 'Es el objetivo diario que verás en Hoy y en la pantalla de Agua.'}
+      </p>
+      <button
+        className="btn-primary btn-block btn-lg"
+        disabled={parsed == null || parsed <= 0}
+        onClick={async () => {
+          if (parsed == null || parsed <= 0) return
+          await mutate(() =>
+            setSetting(esAltura ? SETTINGS.heightCm : SETTINGS.waterGoal, String(parsed)),
+          )
+          onClose()
+        }}
+      >
+        Guardar
+      </button>
+    </Sheet>
   )
 }
