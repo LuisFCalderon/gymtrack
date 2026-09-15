@@ -170,9 +170,19 @@ abre sin red desde la segunda visita. La base vive en OPFS (almacenamiento priva
 **no requiere cabeceras de aislamiento cross-origin**: verificado sirviendo el build desde un
 servidor estático simple y luego apagándolo.
 
+El navegador puede **desalojar** el almacenamiento de un sitio cuando al dispositivo le falta
+espacio, y con él se iría la libreta entera. Por eso la app pide `navigator.storage.persist()` al
+arrancar y muestra el estado en Ajustes (*Protegidos* / *Sin proteger*), con un botón para
+reintentarlo. La decisión es del navegador: suele concederla si la app está instalada en la
+pantalla de inicio o tras usarla varios días, y puede denegarla sin explicación — de ahí que el
+estado se muestre en vez de darse por hecho.
+
 Como no hay nube, **la copia de seguridad es responsabilidad del usuario**: Ajustes → *Exportar
 copia* descarga el `.sqlite3` e *Importar copia* lo restaura. Si se desinstala la app o se borran
 los datos del navegador, se pierden.
+
+> Los datos están atados al origen: si cambias de dominio, no viajan solos. Exporta en el viejo e
+> importa en el nuevo.
 
 ## Despliegue
 

@@ -8,6 +8,7 @@ import { num } from '../lib/format'
 import { appInstalada, instalarApp, useInstalacionDisponible } from '../lib/install'
 import { formatoDescanso, invalidarAjustesDescanso } from '../lib/restTimer'
 import { applyTheme, readTheme, type Theme } from '../lib/theme'
+import { estadoAlmacenamiento, pedirPersistencia } from '../lib/storage'
 import { mutate, useQuery } from '../lib/useQuery'
 
 /** Duraciones de descanso ofrecidas, en segundos. */
@@ -22,14 +23,15 @@ export default function SettingsScreen() {
   const canInstall = useInstalacionDisponible()
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const { data } = useQuery(async () => {
-    const [info, goal, restSeconds, restAlert] = await Promise.all([
+  const { data, reload } = useQuery(async () => {
+    const [info, goal, restSeconds, restAlert, almacenamiento] = await Promise.all([
       getDatabaseInfo(),
       getWaterGoal(),
       getRestSeconds(),
       getRestAlert(),
+      estadoAlmacenamiento(),
     ])
-    return { info, goal, restSeconds, restAlert }
+    return { info, goal, restSeconds, restAlert, almacenamiento }
   }, [])
 
   const saveRest = async (key: string, value: string) => {
@@ -126,6 +128,38 @@ export default function SettingsScreen() {
             <span className="muted">Meta de agua</span>
             <span className="mono">{num(data?.goal ?? 0, 2)} L</span>
           </div>
+          {data?.almacenamiento.soportado && (
+            <>
+              <div className="row-between small">
+                <span className="muted">Protección frente a borrado</span>
+                <span className={`chip${data.almacenamiento.protegido ? ' ok' : ''}`}>
+                  {data.almacenamiento.protegido ? 'Protegidos' : 'Sin proteger'}
+                </span>
+              </div>
+              {!data.almacenamiento.protegido && (
+                <>
+                  <p className="muted tiny">
+                    El navegador puede borrar estos datos si al dispositivo le falta espacio. Instalar
+                    la app en la pantalla de inicio suele bastar para que los proteja.
+                  </p>
+                  <button
+                    className="btn-outline btn-block btn-sm"
+                    onClick={async () => {
+                      const concedido = await pedirPersistencia()
+                      setMessage(
+                        concedido
+                          ? 'Listo: tus datos quedaron protegidos.'
+                          : 'El navegador no lo concedió todavía. Suele concederlo al instalar la app o tras usarla unos días.',
+                      )
+                      reload()
+                    }}
+                  >
+                    Proteger mis datos
+                  </button>
+                </>
+              )}
+            </>
+          )}
           <button className="btn-outline btn-block" onClick={exportDatabase}>
             Exportar copia (.sqlite3)
           </button>
