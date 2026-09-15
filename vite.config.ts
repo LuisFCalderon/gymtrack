@@ -14,6 +14,10 @@ export default defineConfig({
       // el navegador no ofrece instalar la app.
       devOptions: { enabled: true, type: 'module', navigateFallback: 'index.html' },
       workbox: {
+        // Al activar el aislamiento cross-origin, las respuestas cacheadas antes del cambio dejan
+        // de servir para crear workers. Cambiar el cacheId fuerza una caché nueva y limpia.
+        cacheId: 'gymtrack-coi',
+        cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}'],
         // El runtime de SQLite (~860 KB de .wasm) supera el límite por defecto
         // y sin él la app no abriría sin conexión.

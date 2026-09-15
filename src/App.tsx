@@ -3,6 +3,7 @@ import BottomNav from './components/BottomNav'
 import RestTimer from './components/RestTimer'
 import { abrirTour, tourVisto } from './components/tour'
 import { almacenamientoEfimero, initDatabase } from './db/schema'
+import { repararCachesYRecargar } from './lib/recovery'
 import { segments, useRoute } from './lib/router'
 import Dashboard from './screens/Dashboard'
 import RoutineScreen from './screens/RoutineScreen'
@@ -25,12 +26,35 @@ export default function App() {
   const [efimero, setEfimero] = useState(false)
 
   useEffect(() => {
+    let resuelto = false
+
+    // Si abrir la base no responde, casi siempre es una caché vieja del Service Worker que ya no
+    // sirve para crear workers. Se limpia y se recarga una vez; los datos de OPFS no se tocan.
+    const rescate = setTimeout(() => {
+      if (!resuelto) void repararCachesYRecargar()
+    }, 12000)
+
     initDatabase()
       .then(async () => {
-        setEfimero(await almacenamientoEfimero())
+        resuelto = true
+        clearTimeout(rescate)
+        if (await almacenamientoEfimero()) {
+          // Puede que el servidor sí mande las cabeceras y lo que falle sea una caché vieja del
+          // Service Worker sirviendo un documento de antes del cambio. Se limpia y se recarga una
+          // vez; si tras eso sigue en memoria, el problema es real y se avisa.
+          if (await repararCachesYRecargar()) return
+          setEfimero(true)
+        }
         setReady(true)
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+      .catch(async (err: unknown) => {
+        resuelto = true
+        clearTimeout(rescate)
+        if (await repararCachesYRecargar()) return
+        setError(err instanceof Error ? err.message : String(err))
+      })
+
+    return () => clearTimeout(rescate)
   }, [])
 
   // La primera vez que se abre la app, la guía sale sola.
