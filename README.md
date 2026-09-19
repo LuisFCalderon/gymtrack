@@ -3,6 +3,10 @@
 Libreta digital personal de entrenamiento. Local-first, sin cuentas, sin backend y sin
 sincronización: los datos viven en SQLite dentro del dispositivo y la app funciona sin conexión.
 
+**Pruébala: [gymtrack.luixcalderon12-cloudfare.workers.dev](https://gymtrack.luixcalderon12-cloudfare.workers.dev/)** —
+se instala desde el navegador y, una vez instalada, abre sin conexión. Lo que registres se
+queda en tu dispositivo: no viaja a ningún servidor porque no hay ninguno.
+
 El alcance funcional está definido en [`Gym_Track_V2_Alcance_Simplificado.md`](./Gym_Track_V2_Alcance_Simplificado.md).
 La regla para decidir qué entra: *¿mejora directamente la experiencia de una libreta de
 entrenamiento?* Si no, queda fuera.
