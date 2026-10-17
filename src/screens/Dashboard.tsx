@@ -1,13 +1,15 @@
+import ImportBackup from '../components/ImportBackup'
 import { TopBar, Metric, ProgressBar, Empty } from '../components/ui'
 import { listCardioByDate } from '../db/cardio'
 import { getDayByWeekday, listExercises } from '../db/routine'
 import { getSessionByDate, listSessionSets, startSession } from '../db/workouts'
 import { getWaterGoal, lastMeasurement, waterTotal } from '../db/wellbeing'
 import { WEEKDAY_NAMES } from '../db/types'
+import { copiaPendiente, exportarCopia, libretaVacia, omitirCopiaHoy } from '../lib/backup'
 import { formatDuration, todayISO, weekdayOf } from '../lib/date'
 import { kg, num } from '../lib/format'
 import { Link, navigate } from '../lib/router'
-import { useQuery } from '../lib/useQuery'
+import { mutate, useQuery } from '../lib/useQuery'
 
 export default function Dashboard() {
   const date = todayISO()
@@ -15,21 +17,23 @@ export default function Dashboard() {
 
   const { data } = useQuery(async () => {
     const day = await getDayByWeekday(weekday)
-    const [planned, session, cardio, water, goal, body] = await Promise.all([
+    const [planned, session, cardio, water, goal, body, vacia, pendiente] = await Promise.all([
       day ? listExercises(day.id) : Promise.resolve([]),
       getSessionByDate(date),
       listCardioByDate(date),
       waterTotal(date),
       getWaterGoal(),
       lastMeasurement(),
+      libretaVacia(),
+      copiaPendiente(),
     ])
     const sets = session ? await listSessionSets(session.id) : []
-    return { day, planned, session, sets, cardio, water, goal, body }
+    return { day, planned, session, sets, cardio, water, goal, body, vacia, pendiente }
   }, [date, weekday])
 
   if (!data) return <TopBar title="Hoy" />
 
-  const { day, planned, session, sets, cardio, water, goal, body } = data
+  const { day, planned, session, sets, cardio, water, goal, body, vacia, pendiente } = data
   const volume = sets.reduce((total, s) => total + (s.weight_kg ?? 0) * (s.reps ?? 0), 0)
   const exercisesDone = new Set(sets.map((s) => s.session_exercise_id)).size
   const cardioSeconds = cardio.reduce((total, c) => total + (c.duration_seconds ?? 0), 0)
@@ -47,6 +51,37 @@ export default function Dashboard() {
         subtitle={`${WEEKDAY_NAMES[weekday]} · ${date.split('-').reverse().join('/')}`}
       />
       <div className="screen">
+        {/* Instalación vacía: quien reinstala la app tiene a mano cómo recuperar su libreta. */}
+        {vacia && (
+          <section className="card stack-sm">
+            <div className="section-title">¿Ya usabas Gym Track?</div>
+            <p className="muted small">
+              Si exportaste una copia antes de desinstalar la app o cambiar de teléfono, impórtala
+              aquí y recuperarás tu rutina y tu historial.
+            </p>
+            <ImportBackup label="Restaurar copia" className="btn-primary btn-block" libretaVacia />
+          </section>
+        )}
+
+        {/* Copia del día: sólo si hay datos nuevos desde la última, y como mucho una vez al día. */}
+        {pendiente && (
+          <section className="card stack-sm">
+            <div className="section-title">Copia de seguridad</div>
+            <p className="muted small">
+              Tienes datos nuevos sin copiar. Descarga la copia de hoy para no perderlos si
+              desinstalas la app o cambias de teléfono.
+            </p>
+            <div className="row">
+              <button className="grow btn-outline" onClick={() => void mutate(omitirCopiaHoy)}>
+                Hoy no
+              </button>
+              <button className="grow btn-primary" onClick={() => void mutate(exportarCopia)}>
+                Descargar copia
+              </button>
+            </div>
+          </section>
+        )}
+
         <section className="card" data-tour="hoy-resumen">
           <div className="row-between">
             <div className="grow">

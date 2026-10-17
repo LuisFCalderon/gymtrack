@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
+import ImportBackup from '../components/ImportBackup'
 import { abrirTour } from '../components/tour'
-import { Confirm, Sheet, TopBar } from '../components/ui'
-import { getDatabaseFile, getDatabaseInfo, overwriteDatabaseFile } from '../db/client'
+import { Sheet, TopBar } from '../components/ui'
+import { getDatabaseInfo } from '../db/client'
 import {
   SETTINGS,
   getRestAlert,
@@ -11,7 +12,7 @@ import {
   lastMeasurement,
   setSetting,
 } from '../db/wellbeing'
-import { todayISO } from '../lib/date'
+import { exportarCopia, ultimaCopia } from '../lib/backup'
 import { bmi, bmiLabel, num, parseNumber } from '../lib/format'
 import { appInstalada, instalarApp, useInstalacionDisponible } from '../lib/install'
 import { formatoDescanso, invalidarAjustesDescanso } from '../lib/restTimer'
@@ -24,16 +25,14 @@ const REST_OPTIONS = [45, 60, 90, 120, 180]
 
 export default function SettingsScreen() {
   const [theme, setTheme] = useState<Theme>(readTheme())
-  const [importing, setImporting] = useState<File | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [installed, setInstalled] = useState(appInstalada())
   const [installMessage, setInstallMessage] = useState<string | null>(null)
   const canInstall = useInstalacionDisponible()
-  const fileInput = useRef<HTMLInputElement>(null)
   const [editando, setEditando] = useState<'altura' | 'agua' | null>(null)
 
   const { data, reload } = useQuery(async () => {
-    const [info, goal, restSeconds, restAlert, almacenamiento, alturaRaw, ultimaMedida] =
+    const [info, goal, restSeconds, restAlert, almacenamiento, alturaRaw, ultimaMedida, copia] =
       await Promise.all([
         getDatabaseInfo(),
         getWaterGoal(),
@@ -42,9 +41,10 @@ export default function SettingsScreen() {
         estadoAlmacenamiento(),
         getSetting(SETTINGS.heightCm),
         lastMeasurement(),
+        ultimaCopia(),
       ])
     const altura = alturaRaw ? Number(alturaRaw) : (ultimaMedida?.height_cm ?? null)
-    return { info, goal, restSeconds, restAlert, almacenamiento, altura, ultimaMedida }
+    return { info, goal, restSeconds, restAlert, almacenamiento, altura, ultimaMedida, copia }
   }, [])
 
   const saveRest = async (key: string, value: string) => {
@@ -55,18 +55,6 @@ export default function SettingsScreen() {
   const changeTheme = (next: Theme) => {
     setTheme(next)
     applyTheme(next)
-  }
-
-  const exportDatabase = async () => {
-    const file = await getDatabaseFile()
-    const url = URL.createObjectURL(file)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `gymtrack-${todayISO()}.sqlite3`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
   const install = async () => {
@@ -172,6 +160,10 @@ export default function SettingsScreen() {
             <span className="muted">Tamaño de la base</span>
             <span className="mono">{sizeMb > 0 ? `${num(sizeMb, 2)} MB` : '—'}</span>
           </div>
+          <div className="row-between small">
+            <span className="muted">Última copia</span>
+            <span className="mono">{data?.copia ? data.copia.split('-').reverse().join('/') : 'Nunca'}</span>
+          </div>
           {data?.almacenamiento.soportado && (
             <>
               <div className="row-between small">
@@ -204,23 +196,10 @@ export default function SettingsScreen() {
               )}
             </>
           )}
-          <button className="btn-outline btn-block" onClick={exportDatabase}>
-            Exportar copia (.sqlite3)
+          <button className="btn-outline btn-block" onClick={() => void mutate(exportarCopia)}>
+            Exportar copia (.json)
           </button>
-          <button className="btn-outline btn-block" onClick={() => fileInput.current?.click()}>
-            Importar copia
-          </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".sqlite3,.sqlite,.db"
-            hidden
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) setImporting(file)
-              e.target.value = ''
-            }}
-          />
+          <ImportBackup />
           {message && <p className="small">{message}</p>}
         </section>
 
@@ -268,26 +247,6 @@ export default function SettingsScreen() {
           campo={editando}
           valor={editando === 'altura' ? (data?.altura ?? null) : (data?.goal ?? null)}
           onClose={() => setEditando(null)}
-        />
-      )}
-
-      {importing && (
-        <Confirm
-          title="¿Importar esta copia?"
-          message={`Se reemplazarán todos los datos actuales por los de "${importing.name}". Esta acción no se puede deshacer.`}
-          confirmLabel="Importar"
-          onCancel={() => setImporting(null)}
-          onConfirm={async () => {
-            const file = importing
-            setImporting(null)
-            try {
-              await overwriteDatabaseFile(file)
-              setMessage('Copia importada. Recargando…')
-              setTimeout(() => window.location.reload(), 600)
-            } catch (err) {
-              setMessage(`No se pudo importar: ${err instanceof Error ? err.message : String(err)}`)
-            }
-          }}
         />
       )}
     </>

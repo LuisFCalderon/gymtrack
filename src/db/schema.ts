@@ -112,6 +112,9 @@ const MIGRATIONS: { id: number; up: string[] }[] = [
   },
 ]
 
+/** Versión de esquema que entiende esta build. Una copia más nueva no se puede importar. */
+export const ULTIMA_MIGRACION = MIGRATIONS[MIGRATIONS.length - 1].id
+
 const DEFAULT_DAYS = [
   [1, 'Lunes'],
   [2, 'Martes'],

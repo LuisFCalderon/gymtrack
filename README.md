@@ -216,8 +216,28 @@ pantalla de inicio o tras usarla varios días, y puede denegarla sin explicació
 estado se muestre en vez de darse por hecho.
 
 Como no hay nube, **la copia de seguridad es responsabilidad del usuario**: Ajustes → *Exportar
-copia* descarga el `.sqlite3` e *Importar copia* lo restaura. Si se desinstala la app o se borran
-los datos del navegador, se pierden.
+copia* descarga un `.json` con todas las tablas e *Importar copia* lo restaura. Si se desinstala la
+app o se borran los datos del navegador sin haber exportado, se pierden.
+
+La copia es JSON (`{ app, format, schema, exportedAt, tables }`) para que se pueda leer y
+aprovechar fuera de la app. Las copias `.sqlite3` de versiones anteriores se siguen importando.
+
+**Copia diaria.** Una PWA no puede escribir archivos en el teléfono sin un toque del usuario, y lo
+que guarde por dentro se va con ella al desinstalarla, así que la copia no puede ser automática. En
+su lugar, **Hoy** la propone una vez al día, sólo si hay datos nuevos desde la última, con
+*Descargar copia* / *Hoy no*. Ajustes muestra la fecha de la última.
+
+Para quien vuelve tras reinstalar, la pantalla **Hoy** muestra *¿Ya usabas Gym Track? → Restaurar
+copia* mientras la libreta esté vacía, sin tener que ir a buscarlo a Ajustes. La importación
+(`src/lib/backup.ts`) se defiende antes de dar el cambio por bueno:
+
+- Valida el archivo entero antes de tocar nada y lo aplica en un único lote atómico: si algo falla,
+  **la base anterior queda intacta**.
+- Acepta copias de versiones viejas (las columnas que falten toman su valor por defecto y las
+  migraciones pendientes se aplican al recargar) y rechaza las de una versión más nueva.
+- Muestra un resumen de lo recuperado (entrenamientos, series, rango de fechas).
+- El selector de archivo no filtra por extensión: Android no reconoce el tipo de un `.sqlite3` y lo
+  dejaría en gris.
 
 > Los datos están atados al origen: si cambias de dominio, no viajan solos. Exporta en el viejo e
 > importa en el nuevo.
