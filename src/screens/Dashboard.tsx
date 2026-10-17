@@ -5,7 +5,14 @@ import { getDayByWeekday, listExercises } from '../db/routine'
 import { getSessionByDate, listSessionSets, startSession } from '../db/workouts'
 import { getWaterGoal, lastMeasurement, waterTotal } from '../db/wellbeing'
 import { WEEKDAY_NAMES } from '../db/types'
-import { copiaPendiente, exportarCopia, libretaVacia, omitirCopiaHoy } from '../lib/backup'
+import {
+  compartirCopia,
+  copiaPendiente,
+  exportarCopia,
+  libretaVacia,
+  omitirCopiaHoy,
+  puedeCompartir,
+} from '../lib/backup'
 import { formatDuration, todayISO, weekdayOf } from '../lib/date'
 import { kg, num } from '../lib/format'
 import { Link, navigate } from '../lib/router'
@@ -38,6 +45,7 @@ export default function Dashboard() {
   const exercisesDone = new Set(sets.map((s) => s.session_exercise_id)).size
   const cardioSeconds = cardio.reduce((total, c) => total + (c.duration_seconds ?? 0), 0)
   const isRest = day?.rest_day === 1
+  const compartible = puedeCompartir()
 
   const open = async () => {
     const id = await startSession(date)
@@ -71,14 +79,30 @@ export default function Dashboard() {
               Tienes datos nuevos sin copiar. Descarga la copia de hoy para no perderlos si
               desinstalas la app o cambias de teléfono.
             </p>
-            <div className="row">
-              <button className="grow btn-outline" onClick={() => void mutate(omitirCopiaHoy)}>
-                Hoy no
-              </button>
-              <button className="grow btn-primary" onClick={() => void mutate(exportarCopia)}>
-                Descargar copia
-              </button>
-            </div>
+            {compartible ? (
+              <>
+                <button className="btn-primary btn-block" onClick={() => void mutate(compartirCopia)}>
+                  Guardar en Drive, WhatsApp…
+                </button>
+                <div className="row">
+                  <button className="grow btn-outline" onClick={() => void mutate(exportarCopia)}>
+                    Descargar
+                  </button>
+                  <button className="grow btn-ghost" onClick={() => void mutate(omitirCopiaHoy)}>
+                    Hoy no
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="row">
+                <button className="grow btn-outline" onClick={() => void mutate(omitirCopiaHoy)}>
+                  Hoy no
+                </button>
+                <button className="grow btn-primary" onClick={() => void mutate(exportarCopia)}>
+                  Descargar copia
+                </button>
+              </div>
+            )}
           </section>
         )}
 

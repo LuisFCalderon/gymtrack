@@ -227,6 +227,13 @@ que guarde por dentro se va con ella al desinstalarla, así que la copia no pued
 su lugar, **Hoy** la propone una vez al día, sólo si hay datos nuevos desde la última, con
 *Descargar copia* / *Hoy no*. Ajustes muestra la fecha de la última.
 
+**Compartir la copia.** Donde el navegador permite compartir archivos (Web Share API), la copia se
+puede mandar directamente a Drive, WhatsApp o el correo desde Hoy y desde Ajustes. Es lo que
+protege la libreta si se pierde o se cambia el teléfono, no sólo si se desinstala la app. Si el
+usuario cierra el menú sin elegir destino, no cuenta como copia. Chrome en Android no comparte
+`.json` en algunas versiones: entonces la misma copia sale como `.txt` y se importa igual, porque
+la importación mira el contenido y no la extensión.
+
 Para quien vuelve tras reinstalar, la pantalla **Hoy** muestra *¿Ya usabas Gym Track? → Restaurar
 copia* mientras la libreta esté vacía, sin tener que ir a buscarlo a Ajustes. La importación
 (`src/lib/backup.ts`) se defiende antes de dar el cambio por bueno:

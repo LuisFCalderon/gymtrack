@@ -75,17 +75,10 @@ export type ResumenCopia = {
 
 /* ---------- Exportar ---------- */
 
-/**
- * Descarga la copia como `gymtrack-AAAA-MM-DD.json` y la anota como la copia del día.
- *
- * La marca se guarda **antes** de volcar: así la copia ya lleva su propia fecha y huella, y al
- * restaurarla la app no pide otra copia de unos datos que acaban de llegar de una.
- */
+/** Descarga la copia como `gymtrack-AAAA-MM-DD.json` y la anota como la copia del día. */
 export async function exportarCopia(): Promise<void> {
-  await setSetting(CLAVES.ultimaCopia, todayISO())
-  await setSetting(CLAVES.huella, await huellaDatos())
-  const copia = await volcar()
-  const blob = new Blob([JSON.stringify(copia)], { type: 'application/json' })
+  const contenido = await crearCopia()
+  const blob = new Blob([contenido], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -94,6 +87,61 @@ export async function exportarCopia(): Promise<void> {
   link.click()
   link.remove()
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/**
+ * El navegador puede mandar archivos a otras apps (Drive, WhatsApp, correo…). Es la forma de que
+ * la copia salga del teléfono: una descarga se pierde con él, una copia en Drive no.
+ */
+export function puedeCompartir(): boolean {
+  return archivoCompartible('{}') !== null
+}
+
+/**
+ * Abre el menú de compartir del sistema con la copia y la anota como la copia del día.
+ * Devuelve `false` si el usuario cerró el menú sin elegir destino (no cuenta como copia).
+ */
+export async function compartirCopia(): Promise<boolean> {
+  const huellaAnterior = await getSetting(CLAVES.huella)
+  const fechaAnterior = await getSetting(CLAVES.ultimaCopia)
+  const archivo = archivoCompartible(await crearCopia())
+  if (!archivo) throw new Error('Este navegador no permite compartir archivos.')
+  try {
+    await navigator.share({ files: [archivo], title: 'Copia de Gym Track' })
+    return true
+  } catch (err) {
+    // Cancelar el menú no es una copia hecha: se deshace la marca para que Hoy la siga pidiendo.
+    await setSetting(CLAVES.huella, huellaAnterior ?? '')
+    await setSetting(CLAVES.ultimaCopia, fechaAnterior ?? '')
+    if (err instanceof DOMException && err.name === 'AbortError') return false
+    throw err
+  }
+}
+
+/**
+ * Chrome en Android sólo comparte ciertos tipos de archivo y, según la versión, `.json` no está
+ * entre ellos. En ese caso la misma copia sale como `.txt`: importarla funciona igual, porque la
+ * importación mira el contenido y no la extensión.
+ */
+function archivoCompartible(contenido: string): File | null {
+  if (!navigator.canShare) return null
+  const nombre = `gymtrack-${todayISO()}`
+  const opciones = [
+    new File([contenido], `${nombre}.json`, { type: 'application/json' }),
+    new File([contenido], `${nombre}.txt`, { type: 'text/plain' }),
+  ]
+  return opciones.find((archivo) => navigator.canShare({ files: [archivo] })) ?? null
+}
+
+/**
+ * Anota la copia del día y devuelve el JSON. La marca se guarda **antes** de volcar: así la copia
+ * ya lleva su propia fecha y huella, y al restaurarla la app no pide otra copia de unos datos que
+ * acaban de llegar de una.
+ */
+async function crearCopia(): Promise<string> {
+  await setSetting(CLAVES.ultimaCopia, todayISO())
+  await setSetting(CLAVES.huella, await huellaDatos())
+  return JSON.stringify(await volcar())
 }
 
 async function volcar(): Promise<CopiaJSON> {

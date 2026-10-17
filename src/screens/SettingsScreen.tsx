@@ -12,7 +12,7 @@ import {
   lastMeasurement,
   setSetting,
 } from '../db/wellbeing'
-import { exportarCopia, ultimaCopia } from '../lib/backup'
+import { compartirCopia, exportarCopia, puedeCompartir, ultimaCopia } from '../lib/backup'
 import { bmi, bmiLabel, num, parseNumber } from '../lib/format'
 import { appInstalada, instalarApp, useInstalacionDisponible } from '../lib/install'
 import { formatoDescanso, invalidarAjustesDescanso } from '../lib/restTimer'
@@ -194,6 +194,25 @@ export default function SettingsScreen() {
                   </button>
                 </>
               )}
+            </>
+          )}
+          {puedeCompartir() && (
+            <>
+              <button
+                className="btn-outline btn-block"
+                onClick={async () => {
+                  try {
+                    await mutate(compartirCopia)
+                  } catch (err) {
+                    setMessage(`No se pudo compartir: ${err instanceof Error ? err.message : String(err)}`)
+                  }
+                }}
+              >
+                Compartir copia (Drive, WhatsApp…)
+              </button>
+              <p className="muted tiny">
+                Guardarla fuera del teléfono te protege también si lo pierdes o lo cambias.
+              </p>
             </>
           )}
           <button className="btn-outline btn-block" onClick={() => void mutate(exportarCopia)}>
