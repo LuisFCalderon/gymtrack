@@ -37,6 +37,36 @@ admite **cualquier cantidad** de ejercicios, con nombre, series y repeticiones o
 Se editan, se eliminan y se reordenan arrastrando (`@dnd-kit`, pensado para el dedo). Un día puede
 marcarse como descanso.
 
+La rutina se puede **importar y exportar como JSON** desde esta misma pantalla (algo distinto de la
+copia de seguridad: aquí sólo viaja el plan de la semana, nunca el historial). *Importar* reemplaza
+sólo los días que traiga el archivo —el resto queda intacto— y no toca lo ya entrenado. El formato
+es sencillo a propósito, para escribirlo a mano, editarlo en cualquier editor o pedírselo a una IA:
+
+```json
+{
+  "app": "gymtrack",
+  "type": "routine",
+  "version": 1,
+  "days": [
+    {
+      "weekday": 1,
+      "name": "Pecho + Espalda",
+      "rest": false,
+      "exercises": [
+        { "name": "Press banca", "sets": 4, "reps": "8-10", "notes": "Banco plano" },
+        { "name": "Remo con barra", "sets": 4, "reps": "8-10" }
+      ]
+    },
+    { "weekday": 2, "rest": true }
+  ]
+}
+```
+
+La importación es tolerante: `weekday` admite el número (1 = lunes … 7 = domingo) o el nombre del
+día en español o inglés; acepta los campos en español (`nombre`, `descanso`, `ejercicios`,
+`series`, `repeticiones`, `notas`); y lo único imprescindible es el día y el `name` de cada
+ejercicio. Si el día no trae `name` ni `rest`, esos no se tocan y sólo se reemplazan sus ejercicios.
+
 ### Entrenamiento (`#/entrenar/:sessionId`)
 
 El corazón de la app. Cada ejercicio muestra sus series registradas y una fila de entrada rápida

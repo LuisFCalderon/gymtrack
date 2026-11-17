@@ -1,8 +1,10 @@
+import ImportRoutine from '../components/ImportRoutine'
 import { TopBar } from '../components/ui'
 import { countExercisesByDay, listDays } from '../db/routine'
 import { WEEKDAY_NAMES } from '../db/types'
 import { weekdayOf } from '../lib/date'
 import { Link } from '../lib/router'
+import { exportarRutina } from '../lib/routineFile'
 import { useQuery } from '../lib/useQuery'
 
 export default function RoutineScreen() {
@@ -37,6 +39,18 @@ export default function RoutineScreen() {
             )
           })}
         </div>
+
+        <section className="card stack-sm">
+          <div className="section-title">Importar o exportar rutina</div>
+          <p className="muted small">
+            Mueve tu plan como un archivo JSON. Importar reemplaza sólo los días que traiga el archivo
+            y no toca tu historial. Puedes crear el archivo a mano o pedírselo a una IA.
+          </p>
+          <ImportRoutine />
+          <button className="btn-outline btn-block" onClick={() => void exportarRutina()}>
+            Exportar rutina (.json)
+          </button>
+        </section>
       </div>
     </>
   )

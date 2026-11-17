@@ -57,6 +57,51 @@ export async function deleteExercise(id: number): Promise<void> {
   await sql`DELETE FROM routine_exercises WHERE id = ${id}`
 }
 
+/** Un día tal como llega de un archivo de rutina. Los metadatos ausentes (`undefined`) no se tocan. */
+export type RoutineDayImport = {
+  weekday: number
+  name?: string | null
+  rest_day?: boolean
+  exercises: ExerciseInput[]
+}
+
+/**
+ * Importa una rutina: cada día del archivo reemplaza por completo los ejercicios de ese día de la
+ * semana. El nombre y el "día de descanso" sólo se cambian si el archivo los trae; así un archivo
+ * centrado en los ejercicios no borra el nombre que ya tenías. Los días que el archivo no incluya
+ * quedan intactos. Nada de esto toca el historial de entrenamientos. Es atómico: si algo falla, la
+ * rutina se queda como estaba.
+ */
+export async function importRoutineDays(
+  days: RoutineDayImport[],
+): Promise<{ dias: number; ejercicios: number }> {
+  let ejercicios = 0
+  await transaction(async (tx) => {
+    for (const day of days) {
+      const rows = await tx.sql<{ id: number }>`
+        SELECT id FROM routine_days WHERE weekday = ${day.weekday}`
+      const dayId = rows[0]?.id
+      if (dayId == null) continue // weekday fuera de 1..7: defensivo, el parser ya lo valida.
+
+      if (day.name !== undefined) {
+        await tx.sql`UPDATE routine_days SET name = ${day.name ?? ''} WHERE id = ${dayId}`
+      }
+      if (day.rest_day !== undefined) {
+        await tx.sql`UPDATE routine_days SET rest_day = ${day.rest_day ? 1 : 0} WHERE id = ${dayId}`
+      }
+
+      await tx.sql`DELETE FROM routine_exercises WHERE day_id = ${dayId}`
+      for (const [index, ex] of day.exercises.entries()) {
+        await tx.sql`
+          INSERT INTO routine_exercises (day_id, name, order_index, target_sets, target_reps, notes)
+          VALUES (${dayId}, ${ex.name}, ${index}, ${ex.target_sets}, ${ex.target_reps}, ${ex.notes})`
+        ejercicios += 1
+      }
+    }
+  })
+  return { dias: days.length, ejercicios }
+}
+
 /** Persiste el nuevo orden completo del día tras un drag & drop. */
 export async function reorderExercises(orderedIds: number[]): Promise<void> {
   await transaction(async (tx) => {
